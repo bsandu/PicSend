@@ -38,7 +38,6 @@ public class PicSendService extends Service {
 	private static String TAG = "JmDNS App";
     private static String DEFAULT_ID_PREFIX = "picsend-";
     private static String SERVICE_TYPE = "_picsend._tcp.local.";
-//    private static String MESSAGE = "HELLO PEEPS";
     private ServiceInfo serviceInfo;
     private PicSendServer myServer;
     private String devId;
@@ -74,6 +73,8 @@ public class PicSendService extends Service {
             lock.setReferenceCounted(true);
             lock.acquire();
 
+            
+            //Se porneste jmdns
             Log.d(TAG, "Starting jmDNS service");
             try {
                 jmdns = JmDNS.create(deviceIpAddress, deviceIpAddress.getHostName());
@@ -98,33 +99,36 @@ public class PicSendService extends Service {
                                 public void serviceResolved(final ServiceEvent serviceEvent) {
                                     Log.i(TAG, "Peer found " + serviceEvent.getInfo().toString());
 
+                                    //Daca e vorba de alt device, ii trimit toate fisierele existente.
                                     if (!serviceEvent.getName().equals(devId)) {
-                                    	Log.d("RESOLVER","BINGO!" + serviceEvent.getName());
-//                                    	new AsyncTask<Void, Void, Void>() {
-//                                        	String received = "";
-//                                            @Override
-//                                            protected Void doInBackground(Void... params) {
-//                                                try {
-//                                                    for (InetAddress i : serviceEvent.getInfo().getInet4Addresses()) {
-//                                                        Log.d(TAG, "Other peer is: " + i.getHostAddress());
-//                                                    }
-//                                                    String path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-//                                                    		.toString() + "/Camera";
-//                                                    File f = new File(path);
-//                                                    File files[] = f.listFiles();
-//                                                    for(int i=0; i<files.length; i++) {
-//                                                        this.received = PicSendClient.send_file(devId,
-//                                                        		files[i],
-//                                                        		serviceEvent.getInfo().getInetAddresses()[0],
-//                                                        		serviceEvent.getInfo().getPort());
-//                                                    }
-//                                                    return null;
-//                                                } catch (IOException e) {
-//                                                    Log.e(TAG, "Error in request:" + e.getMessage());
-//                                                    return null;
-//                                                }
-//                                            }
-//                                    }.execute();
+                                    	Log.d("RESOLVER","BINGO!" + serviceEvent.getName() + " with " + devId);
+                                    	new AsyncTask<Void, Void, Void>() {
+                                        	String received = "";
+                                            @Override
+                                            protected Void doInBackground(Void... params) {
+                                                try {
+                                                    for (InetAddress i : serviceEvent.getInfo().getInet4Addresses()) {
+                                                        Log.d(TAG, "Other peer is: " + i.getHostAddress());
+                                                    }
+                                                    //Aflu path-ul camerei
+                                                    String path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+                                                    		.toString() + "/Camera";
+                                                    File f = new File(path);
+                                                    File files[] = f.listFiles();
+                                                    //Trimit toate pozele
+                                                    for(int i=0; i<files.length; i++) {
+                                                        this.received = PicSendClient.send_file(devId,
+                                                        		files[i],
+                                                        		serviceEvent.getInfo().getInetAddresses()[0],
+                                                        		serviceEvent.getInfo().getPort());
+                                                    }
+                                                    return null;
+                                                } catch (IOException e) {
+                                                    Log.e(TAG, "Error in request:" + e.getMessage());
+                                                    return null;
+                                                }
+                                            }
+                                    }.execute();
                                     }
                                 }
                             });
@@ -158,7 +162,6 @@ public class PicSendService extends Service {
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		Toast.makeText(this, "Service started!", Toast.LENGTH_LONG).show();
-		Log.d("SERVICE", "O apasat butonu ma");
 		devId = DEFAULT_ID_PREFIX + Settings.Secure.getString(getApplicationContext().getContentResolver(),
                 Settings.Secure.ANDROID_ID).substring(0, 5);
 		final String path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).toString() + "/Camera";
@@ -166,12 +169,38 @@ public class PicSendService extends Service {
 
 		    @Override
 		    public void onEvent(int event, String file) {
+		    	//Daca un fisier a fost creat
 		        if (event == FileObserver.CREATE && !file.equals(".probe")) {
 		        	Log.d("SERVICE", "File created [" + path + file + "]");
 		        	try {
 			        	devices = jmdns.list(SERVICE_TYPE);
+			        	//Aflu ce alte device-uri exista in momentul de fata
 			        	for(int i=0; i<devices.length; i++) {
-			        		Log.d("IMPORTANT",devices[i].getName());
+			        		if(!devices[i].getName().equals(devId)) {
+			        			
+			        			Log.d("IMPORTANT",devices[i].getName());
+			        			final File f = new File(path + "/" + file);
+			        			final ServiceInfo device = devices[i];
+			        			//Trimit fisierul spre acele device-uri
+			        			new AsyncTask<Void, Void, Void>() {
+                                	String received = "";
+                                    @Override
+                                    protected Void doInBackground(Void... params) {
+                                        try {
+                                            this.received = PicSendClient.send_file(devId,
+                                                		f,
+                                                		device.getInetAddresses()[0],
+                                                		device.getPort());
+                                            return null;
+                                        } catch (IOException e) {
+                                            Log.e(TAG, "Error in request:" + e.getMessage());
+                                            return null;
+                                        }
+                                    }
+			        			}.execute();
+			        			
+			        			Log.d("IMPORTANT","Sent " + file + " to " + devices[i].getName());
+			        		}
 			        	}
 		        	} catch (Exception e) {
 		        		Log.d("IMPORTANT","Something went bad...");
