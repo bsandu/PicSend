@@ -8,26 +8,8 @@ import android.util.Log;
 
 public class PicSendClient {
 
-	private static String TAG = "Client";
-	
-	public static String sendTo(String str, InetAddress destination, int port) throws IOException {
-        Socket socket = null;
-        DataOutputStream writer;
-        DataInputStream reader;
-
-        try {
-            socket = new Socket(destination, port);
-            writer = new DataOutputStream(socket.getOutputStream());
-            writer.writeUTF(str);
-            socket.shutdownOutput();
-            reader = new DataInputStream(socket.getInputStream());
-            return reader.readUTF();
-        } finally {
-            if (socket != null) {
-                socket.close();
-            }
-        }
-    }
+	private static String TAG = "picsend";
+	private static String FTAG = "\t\tCLIENT: ";
 
     public static String send_file(String dev_name, File f, InetAddress destination, int port) throws IOException {
     	
@@ -44,6 +26,17 @@ public class PicSendClient {
             writer.writeUTF(dev_name);
             writer.writeUTF(f.getName());
             
+            received = reader.readUTF();
+            
+            Log.d(TAG,FTAG + dev_name + " is sending " + f.getName() + " to " + destination.toString());
+            
+            if (received.equals("NACK")) {
+            	socket.shutdownInput();
+            	socket.shutdownOutput();
+            	Log.d(TAG,FTAG + destination.toString() + " denied the transfer");
+            	return "File already exists on " + destination.toString();
+            }
+            
             OutputStream os = socket.getOutputStream();
             FileInputStream fis = new FileInputStream(f);
 	    	BufferedInputStream bis = new BufferedInputStream(fis);
@@ -57,7 +50,6 @@ public class PicSendClient {
 			bis.close();
 			fis.close();
 			socket.shutdownOutput();
-
 			received = reader.readUTF();
 			return received;
         } finally {
@@ -65,10 +57,6 @@ public class PicSendClient {
                 socket.close();
             }
         }
-    }
-    
-    static String sendTo(String str, String host, int port) throws IOException {
-        return sendTo(str, InetAddress.getByName(host), port);
     }
     
     static String send_file(String dev_name, File f, String host, int port) throws IOException {

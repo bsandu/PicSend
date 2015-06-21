@@ -17,8 +17,8 @@ import java.util.ArrayList;
 
 public class PicSendServer {
 
-    private static String TAG = "Server";
-    private static String RESPONSE = "Pong";
+    private static String TAG = "picsend";
+    private static String FTAG = "\tSERVER: ";
 
     private ServerSocket serverSocket;
     private Socket clientSocket;
@@ -39,12 +39,12 @@ public class PicSendServer {
                 try {
                     while (alive) {
                         clientSocket = serverSocket.accept();
-                        Log.d(TAG, "Request received from: " + clientSocket.getRemoteSocketAddress().toString());
+                        Log.d(TAG, FTAG + "Request received from: " + clientSocket.getRemoteSocketAddress().toString());
                         serve_file(clientSocket);
                     }
                     serverSocket.close();
                 } catch (IOException ioe) {
-                    Log.e(TAG, "Error in PongServer: " + ioe.getMessage());
+                    Log.e(TAG, FTAG + "Error in PicSendServer: " + ioe.getMessage());
                 }
             }
         }).start();
@@ -60,13 +60,19 @@ public class PicSendServer {
     		
 	    	String dev_name = inbound.readUTF();
 	    	String filename = inbound.readUTF();
+	    	Log.d(TAG,FTAG + "Is receiving " + filename + " from " + client.getInetAddress().toString() + "(" + dev_name + ")");
 	    	String path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).toString() + "/" + dev_name;
 	    	File f = new File(path);
 	    	File g = new File(path + "/" + filename);
 	    	
 	    	if(g.exists()) {
+	    		Log.d(TAG,FTAG + filename + " already exists");
+	    		outbound.writeUTF("NACK");
+	    		client.shutdownInput();
+	    		client.shutdownOutput();
 	    		return;
 	    	}    	
+	    	outbound.writeUTF("ACK");
 	    	if(!(f.exists() && f.isDirectory())) {
 	    		f.mkdir();
 	    	}
