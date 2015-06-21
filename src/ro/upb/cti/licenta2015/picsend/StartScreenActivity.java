@@ -37,8 +37,10 @@ public class StartScreenActivity extends Activity {
 		Button toggle = (Button)findViewById(R.id.button_toggle);
 		if(isServiceRunning) {
 			toggle.setText("Stop");
+			toggle.setBackgroundResource(R.drawable.circle_stop);
 		} else {
 			toggle.setText("Start");
+			toggle.setBackgroundResource(R.drawable.circle_start);
 		}
 		
 		toggle.setOnClickListener(new View.OnClickListener() {
@@ -49,10 +51,12 @@ public class StartScreenActivity extends Activity {
 					startService(new Intent(getBaseContext(), PicSendService.class));
 					isServiceRunning = true;
 					((Button)v.findViewById(R.id.button_toggle)).setText("Stop");
+					((Button)v.findViewById(R.id.button_toggle)).setBackgroundResource(R.drawable.circle_stop);
 				} else {
 					stopService(new Intent(getBaseContext(), PicSendService.class));
 					isServiceRunning = false;
 					((Button)v.findViewById(R.id.button_toggle)).setText("Start");
+					((Button)v.findViewById(R.id.button_toggle)).setBackgroundResource(R.drawable.circle_start);
 				}
 			}
 		});

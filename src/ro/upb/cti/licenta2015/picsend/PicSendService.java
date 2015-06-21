@@ -52,9 +52,7 @@ public class PicSendService extends Service {
 	                                .setContentIntent(pendingIntent).build();
 
 	    startForeground(12345, notification);
-
 	}
-	
 	
 	public class myRunnable implements Runnable {
 
@@ -301,5 +299,4 @@ public class PicSendService extends Service {
 		}
 		Toast.makeText(this, "Service stopped!", Toast.LENGTH_LONG).show();
 	}
-
 }
