@@ -13,7 +13,6 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
 
 public class PicSendServer {
 
@@ -91,10 +90,11 @@ public class PicSendServer {
 			bos.close();
 			fos.close();
 			client.shutdownInput();
-			outbound.writeUTF("File " + filename + " received!");
 			client.shutdownOutput();
     	} finally {
-    		client.close();
+    		if(client != null) {
+    			client.close();
+    		}
     	}
 	}
     

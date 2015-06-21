@@ -21,19 +21,11 @@
     </EditText>
 
     <Button
-        android:id="@+id/button_start"
+        android:id="@+id/button_toggle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_below="@+id/editText_room"
         android:text="Start Service" />
-    
-    <Button
-        android:id="@+id/button_stop"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_below="@+id/button_start"
-        android:text="Stop Service" />
 
 </RelativeLayout>

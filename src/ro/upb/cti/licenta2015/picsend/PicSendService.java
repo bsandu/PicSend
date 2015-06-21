@@ -1,23 +1,16 @@
 package ro.upb.cti.licenta2015.picsend;
 
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Environment;
-import android.os.FileObserver;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
-import android.app.Activity;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
-import android.os.Bundle;
-import android.provider.Settings;
-import android.text.method.ScrollingMovementMethod;
-import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.TextView;
-
+import android.support.v4.app.NotificationCompat;
 import javax.jmdns.*;
 
 import java.io.File;
@@ -25,13 +18,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.HashMap;
-
-
-
-
-
 
 public class PicSendService extends Service {
 
@@ -45,31 +31,31 @@ public class PicSendService extends Service {
     private WifiManager.MulticastLock lock;
     private JmDNS jmdns;
     public String dev_name = DEFAULT_ID_PREFIX;
-//    private ServiceInfo[] devices;
     private Object syncLock = new Object();
     
     private ArrayList<String> devName = null;
     private ArrayList<InetAddress> devAddr = null;
     private ArrayList<Integer> devPort = null;
     
-//    private ArrayList<devData> devices;
-    
-//    private class devData {
-//    	private String devName;
-//    	private InetAddress devAddr;
-//    	private int devPort;
-//    	
-//    	public devData(String devName, InetAddress devAddr, int devPort) {
-//    		this.devName = devName;
-//    		this.devAddr = devAddr;
-//    		this.devPort = devPort;
-//    	}
-//    }
-    
-    
     private myRunnable myFileObserver;
 	private Thread myThread;
 	private String path;
+	
+	private void runAsForeground(){
+	    Intent notificationIntent = new Intent(this, StartScreenActivity.class);
+	    PendingIntent pendingIntent=PendingIntent.getActivity(this, 0,
+	            notificationIntent, Intent.FLAG_ACTIVITY_NEW_TASK);
+
+	    Notification notification=new NotificationCompat.Builder(this)
+	                                .setSmallIcon(R.drawable.ic_launcher)
+	                                .setContentText("HELLO")
+	                                .setContentIntent(pendingIntent).build();
+
+	    startForeground(12345, notification);
+
+	}
+	
+	
 	public class myRunnable implements Runnable {
 
 		private boolean running;
@@ -81,7 +67,6 @@ public class PicSendService extends Service {
 		
 		@Override
         public void run() {
-	        // TODO Auto-generated method stub
         	Log.d(TAG,FTAG + "\tFOBS: started");
         	this.running = true;
         	myFiles = new ArrayList<String>();
@@ -96,6 +81,10 @@ public class PicSendService extends Service {
 	        while(running) {
 	           try {
 	        	   Thread.sleep(5000);
+	        	   if(!running) {
+	        		   Log.d(TAG, FTAG + "Gracefully interrupted");
+	        		   break;
+	        	   }
 	        	   f = new File(path);
 	        	   files = f.listFiles();
 	        	   for (int i=0; i<files.length; i++) {
@@ -111,11 +100,10 @@ public class PicSendService extends Service {
 									final int finalPort = devPort.get(j);
 							
 									new AsyncTask<Void, Void, Void>() {
-							        	String received = "";
 							            @Override
 							            protected Void doInBackground(Void... params) {
 							                try {
-							                    this.received = PicSendClient.send_file(devId,
+							                    PicSendClient.send_file(devId,
 							                        		fn,
 							                        		finalAddr,
 							                        		finalPort);
@@ -126,23 +114,21 @@ public class PicSendService extends Service {
 							                }
 							            }
 									}.execute();
-									
-//									Log.d(TAG,"FOBS: Sent " + files[i].getName() + " to " + devName.get(i));
 								}
 							}
 	        			   
 	        		   }
 	               }
 	        	   
+	           } catch(InterruptedException ie) {
+	        	   Log.d(TAG, FTAG + "Gracefully interrupted");
 	           } catch (Exception e) {
 	        	   Log.e(TAG,FTAG + "\tFOBS: ERROR - " + e.getMessage());
 	        	   e.printStackTrace();
 	           } 
 	        }
         }
-		
 	}
-    
     
     private class ServiceResolver extends AsyncTask<Void, Void, Void> {
 
@@ -214,13 +200,9 @@ public class PicSendService extends Service {
 	                                    	devPort.add(serviceEvent.getInfo().getPort());
                                     	}
                                     	new AsyncTask<Void, Void, Void>() {
-                                        	String received = "";
                                             @Override
                                             protected Void doInBackground(Void... params) {
                                                 try {
-//                                                    for (InetAddress i : serviceEvent.getInfo().getInet4Addresses()) {
-//                                                        Log.d(TAG, FTAG + "Other peer is: " + i.getHostAddress());
-//                                                    }
                                                     Log.d(TAG,FTAG + "Other peer details: " + 
                                                     		serviceEvent.getName().toString() +
                                                     		serviceEvent.getInfo().getInetAddresses()[0].toString() + 
@@ -232,7 +214,7 @@ public class PicSendService extends Service {
                                                     File files[] = f.listFiles();
                                                     //Trimit toate pozele
                                                     for(int i=0; i<files.length; i++) {
-                                                        this.received = PicSendClient.send_file(devId,
+                                                        PicSendClient.send_file(devId,
                                                         		files[i],
                                                         		serviceEvent.getInfo().getInetAddresses()[0],
                                                         		serviceEvent.getInfo().getPort());
@@ -270,12 +252,12 @@ public class PicSendService extends Service {
 	
 	@Override
 	public IBinder onBind(Intent arg0) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 	
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
+		runAsForeground();
 		synchronized (syncLock) {
 			devName = new ArrayList<String>();
 			devAddr = new ArrayList<InetAddress>();
@@ -286,57 +268,7 @@ public class PicSendService extends Service {
 		//devId = DEFAULT_ID_PREFIX +	Settings.Secure.getString(getApplicationContext().getContentResolver(),Settings.Secure.ANDROID_ID).substring(0, 5);
 		devId = DEFAULT_ID_PREFIX + android.os.Build.MODEL;
 		Log.d(TAG,FTAG + "My name is " + devId);
-		final String path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).toString() + "/Camera";
-		
-		
-		
-		
-//		FileObserver observer = new FileObserver(path) {
-//
-//		    @Override
-//		    public void onEvent(int event, String file) {
-//		    	//Daca un fisier a fost creat
-//		        if (event == FileObserver.CREATE && !file.equals(".probe")) {
-//		        	Log.d(TAG, "FILE OBSERVER: File created [" + path + file + "]");
-////		        	try {
-//	        		synchronized(syncLock) {
-//	        			Log.d(TAG, "FILE OBSERVER: Entering critical section...");
-//			        	for(int i=0; i<devName.size(); i++) {
-//		        			Log.d(TAG,devName.get(i));
-//		        			final File f = new File(path + "/" + file);
-//		        			final InetAddress finalAddr = devAddr.get(i);
-//		        			final int finalPort = devPort.get(i);
-//
-//		        			new AsyncTask<Void, Void, Void>() {
-//                            	String received = "";
-//                                @Override
-//                                protected Void doInBackground(Void... params) {
-//                                    try {
-//                                        this.received = PicSendClient.send_file(devId,
-//                                            		f,
-//                                            		finalAddr,
-//                                            		finalPort);
-//                                        return null;
-//                                    } catch (IOException e) {
-//                                        Log.e(TAG, "Error in request:" + e.getMessage());
-//                                        return null;
-//                                    }
-//                                }
-//		        			}.execute();
-//		        			
-//		        			Log.d(TAG,"Sent " + file + " to " + devName.get(i));
-//			        	}
-//	        		}
-////		        	} 
-////		        	catch (Exception e) {
-////		        		Log.d(TAG,"Something went bad...");
-////		        	}
-//		        }
-//		    }
-//		};
-//
 		Log.i(TAG, FTAG + "Starting fileobserver...");
-//		observer.startWatching();
 		myFileObserver = new myRunnable();
 		myThread = new Thread(myFileObserver);
 		myThread.start();
@@ -349,18 +281,22 @@ public class PicSendService extends Service {
 	@Override
 	public void onDestroy(){
 		super.onDestroy();
-		myFileObserver.terminate();
 		try {
+			stopForeground(true);
+			myFileObserver.terminate();
+			Thread.sleep(200);
+			myThread.interrupt();
 			myThread.join();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		jmdns.unregisterAllServices();
-		try {
+			jmdns.unregisterAllServices();
 			jmdns.close();
+		} catch (InterruptedException e) {
+			Log.e(TAG, FTAG + e.getMessage());
+			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			Log.e(TAG, FTAG + e.getMessage());
+			e.printStackTrace();
+		} catch (Exception e) {
+			Log.e(TAG, FTAG + e.getMessage());
 			e.printStackTrace();
 		}
 		Toast.makeText(this, "Service stopped!", Toast.LENGTH_LONG).show();

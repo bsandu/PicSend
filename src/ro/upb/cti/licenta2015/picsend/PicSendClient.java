@@ -11,7 +11,7 @@ public class PicSendClient {
 	private static String TAG = "picsend";
 	private static String FTAG = "\t\tCLIENT: ";
 
-    public static String send_file(String dev_name, File f, InetAddress destination, int port) throws IOException {
+    public static void send_file(String dev_name, File f, InetAddress destination, int port) throws IOException {
     	
     	Socket socket = null;
         DataOutputStream writer;
@@ -34,7 +34,6 @@ public class PicSendClient {
             	socket.shutdownInput();
             	socket.shutdownOutput();
             	Log.d(TAG,FTAG + destination.toString() + " denied the transfer");
-            	return "File already exists on " + destination.toString();
             }
             
             OutputStream os = socket.getOutputStream();
@@ -50,8 +49,6 @@ public class PicSendClient {
 			bis.close();
 			fis.close();
 			socket.shutdownOutput();
-			received = reader.readUTF();
-			return received;
         } finally {
             if (socket != null) {
                 socket.close();
@@ -59,8 +56,8 @@ public class PicSendClient {
         }
     }
     
-    static String send_file(String dev_name, File f, String host, int port) throws IOException {
-    	return send_file(dev_name, f, InetAddress.getByName(host), port);
+    static void send_file(String dev_name, File f, String host, int port) throws IOException {
+    	send_file(dev_name, f, InetAddress.getByName(host), port);
     }
 	
 }
