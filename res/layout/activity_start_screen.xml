@@ -9,15 +9,25 @@
     tools:context="ro.upb.cti.licenta2015.picsend.StartScreenActivity" >
 
     <EditText
-        android:id="@+id/editText_room"
+        android:id="@+id/editText_name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
-        android:hint="Enter room name..."
+        android:hint="Name"
         android:ems="10" >
 
         <requestFocus />
+    </EditText>
+    
+    <EditText
+        android:id="@+id/editText_room"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/editText_name"
+        android:layout_alignParentLeft="true"
+        android:hint="Room"
+        android:ems="10" >
     </EditText>
 
     <Button
@@ -29,5 +39,13 @@
         android:textSize="40dp"
         android:background="@drawable/circle_start"
         android:text="Start Service" />
+
+    <CheckBox
+        android:id="@+id/checkBox_sync"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@+id/editText_room"
+        android:text="Sync entire folder" />
 
 </RelativeLayout>

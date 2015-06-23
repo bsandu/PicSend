@@ -23,7 +23,7 @@ public class PicSendService extends Service {
 
 	private static String TAG = "picsend";
 	private static String FTAG = "SERVICE: ";
-    private static String DEFAULT_ID_PREFIX = "picsend-";
+    private static String DEFAULT_ID_PREFIX = "picsend_";
     private static String SERVICE_TYPE = "_picsend._tcp.local.";
     private ServiceInfo serviceInfo;
     private PicSendServer myServer;
@@ -41,14 +41,18 @@ public class PicSendService extends Service {
 	private Thread myThread;
 	private String path;
 	
-	private void runAsForeground(){
+	private String name = "";
+	private String room = "";
+	private boolean sync = false;
+	
+	private void runAsForeground(String name, String room){
 	    Intent notificationIntent = new Intent(this, StartScreenActivity.class);
 	    PendingIntent pendingIntent=PendingIntent.getActivity(this, 0,
 	            notificationIntent, Intent.FLAG_ACTIVITY_NEW_TASK);
 
 	    Notification notification=new NotificationCompat.Builder(this)
 	                                .setSmallIcon(R.drawable.ic_launcher)
-	                                .setContentText("HELLO")
+	                                .setContentText(name + " is in room " + room)
 	                                .setContentIntent(pendingIntent).build();
 
 	    startForeground(12345, notification);
@@ -173,7 +177,16 @@ public class PicSendService extends Service {
 
                                 @Override
                                 public void serviceRemoved(ServiceEvent serviceEvent) {
-                                    Log.i(TAG, FTAG + "Service removed " + serviceEvent.getInfo().toString());
+                                	String remName = serviceEvent.getName().toString();
+                                	Log.i(TAG, FTAG + "Service removed " + remName);
+                                	String[] remNameSplit = remName.split("_");
+                                	if (remNameSplit.length != 4) {
+                                		return;
+                                	} else {
+                                		if (!room.equals(remNameSplit[3])) {
+                                			return;
+                                		}
+                                	}
                                     int index = devName.indexOf(serviceEvent.getName());
                                     if(index >= 0) {
                                     	synchronized (syncLock) {
@@ -186,7 +199,17 @@ public class PicSendService extends Service {
 
                                 @Override
                                 public void serviceResolved(final ServiceEvent serviceEvent) {
-                                    Log.i(TAG, FTAG + "Peer found " + serviceEvent.getInfo().toString());
+                                	String addName = serviceEvent.getName().toString();
+                                    Log.i(TAG, FTAG + "Peer found " + addName);
+                                    String[] addNameSplit = addName.split("_");
+                                    if (addNameSplit.length != 4) {
+                                		return;
+                                	} else {
+                                		if (!room.equals(addNameSplit[3])) {
+                                			Log.d(TAG,FTAG + "\t\t\t" + addName + " is not part of room " + room);
+                                			return;
+                                		}
+                                	}
 
                                     //Daca e vorba de alt device, ii trimit toate fisierele existente.
                                     if (!serviceEvent.getName().equals(devId)
@@ -197,33 +220,35 @@ public class PicSendService extends Service {
 	                                    	devAddr.add(serviceEvent.getInfo().getInetAddresses()[0]);
 	                                    	devPort.add(serviceEvent.getInfo().getPort());
                                     	}
-                                    	new AsyncTask<Void, Void, Void>() {
-                                            @Override
-                                            protected Void doInBackground(Void... params) {
-                                                try {
-                                                    Log.d(TAG,FTAG + "Other peer details: " + 
-                                                    		serviceEvent.getName().toString() +
-                                                    		serviceEvent.getInfo().getInetAddresses()[0].toString() + 
-                                                    		serviceEvent.getInfo().getPort());
-                                                    //Aflu path-ul camerei
-                                                    String path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-                                                    		.toString() + "/Camera";
-                                                    File f = new File(path);
-                                                    File files[] = f.listFiles();
-                                                    //Trimit toate pozele
-                                                    for(int i=0; i<files.length; i++) {
-                                                        PicSendClient.send_file(devId,
-                                                        		files[i],
-                                                        		serviceEvent.getInfo().getInetAddresses()[0],
-                                                        		serviceEvent.getInfo().getPort());
-                                                    }
-                                                    return null;
-                                                } catch (IOException e) {
-                                                    Log.e(TAG, FTAG + "Error in request:" + e.getMessage());
-                                                    return null;
-                                                }
-                                            }
-                                    }.execute();
+                                    	if (sync == true) {
+	                                    	new AsyncTask<Void, Void, Void>() {
+	                                            @Override
+	                                            protected Void doInBackground(Void... params) {
+	                                                try {
+	                                                    Log.d(TAG,FTAG + "Other peer details: " + 
+	                                                    		serviceEvent.getName().toString() +
+	                                                    		serviceEvent.getInfo().getInetAddresses()[0].toString() + 
+	                                                    		serviceEvent.getInfo().getPort());
+	                                                    //Aflu path-ul camerei
+	                                                    String path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+	                                                    		.toString() + "/Camera";
+	                                                    File f = new File(path);
+	                                                    File files[] = f.listFiles();
+	                                                    //Trimit toate pozele
+	                                                    for(int i=0; i<files.length; i++) {
+	                                                        PicSendClient.send_file(devId,
+	                                                        		files[i],
+	                                                        		serviceEvent.getInfo().getInetAddresses()[0],
+	                                                        		serviceEvent.getInfo().getPort());
+	                                                    }
+	                                                    return null;
+	                                                } catch (IOException e) {
+	                                                    Log.e(TAG, FTAG + "Error in request:" + e.getMessage());
+	                                                    return null;
+	                                                }
+	                                            }
+	                                    	}.execute();
+                                    	}
                                     }
                                 }
                             });
@@ -255,7 +280,14 @@ public class PicSendService extends Service {
 	
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		runAsForeground();
+		
+		if (intent !=null && intent.getExtras()!=null) {
+		     name = intent.getExtras().getString("name");
+		     room = intent.getExtras().getString("room");
+		     sync = intent.getExtras().getBoolean("sync");
+		}
+		
+		runAsForeground(name, room);
 		synchronized (syncLock) {
 			devName = new ArrayList<String>();
 			devAddr = new ArrayList<InetAddress>();
@@ -264,7 +296,9 @@ public class PicSendService extends Service {
 		
 		Toast.makeText(this, "Service started!", Toast.LENGTH_LONG).show();
 		//devId = DEFAULT_ID_PREFIX +	Settings.Secure.getString(getApplicationContext().getContentResolver(),Settings.Secure.ANDROID_ID).substring(0, 5);
-		devId = DEFAULT_ID_PREFIX + android.os.Build.MODEL;
+		String model = android.os.Build.MODEL;
+		model = model.replaceAll("[^A-Za-z0-9 ]", "");
+		devId = DEFAULT_ID_PREFIX + model + "_" + name + "_" + room;
 		Log.d(TAG,FTAG + "My name is " + devId);
 		Log.i(TAG, FTAG + "Starting fileobserver...");
 		myFileObserver = new myRunnable();
